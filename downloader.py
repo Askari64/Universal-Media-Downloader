@@ -203,14 +203,20 @@ def select_and_download(url, audio_folder, video_folder):
     for i, choice in enumerate(choices, 1):
         size_str = format_size(choice['filesize'])
         print(f"{i}: {choice['label']} (~{size_str})")
+    
+    exit_option_number = len(choices) + 1
+    print(f"{exit_option_number}: Go back (Choose another URL)")
     print("-" * 40)
 
     while True:
         try:
-            user_choice = int(input(f"Enter your choice (1-{len(choices)}): "))
+            user_choice = int(input(f"Enter your choice (1-{exit_option_number}): "))
             if 1 <= user_choice <= len(choices):
                 selected = choices[user_choice - 1]
                 break
+            elif user_choice == exit_option_number:
+                print("\nReturning to URL selection...")
+                return # Go back to the main loop
             else:
                 print("Invalid choice. Please try again.")
         except ValueError:
