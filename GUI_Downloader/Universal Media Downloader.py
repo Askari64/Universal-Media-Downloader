@@ -257,23 +257,42 @@ class App(ctk.CTk):
             "Low Audio (MP3)": 'worstaudio/bestaudio[abr<=64]'
         }
 
-        # For single videos, calculate approximate sizes
+        # For single videos, calculate approximate sizes (aligned with CLI logic)
         sizes = [0] * 6 # Default to no size info
         if not is_playlist and info:
             formats = info.get('formats', [])
             
-            best_audio_stream = max((f for f in formats if f.get('vcodec') == 'none' and f.get('abr')), key=lambda x: x['abr'], default={})
-            best_audio_size = best_audio_stream.get('filesize') or best_audio_stream.get('filesize_approx') or 0
+            # --- Robust Size Calculation Logic (aligned with CLI) ---
+            best_audio_for_merge = max(
+                (f for f in formats if f.get('vcodec') == 'none' and f.get('acodec') != 'none' and f.get('abr') is not None),
+                key=lambda f: f.get('abr', 0),
+                default=None
+            )
+            best_audio_size = best_audio_for_merge.get('filesize') or best_audio_for_merge.get('filesize_approx') or 0 if best_audio_for_merge else 0
 
-            def get_video_size(height):
-                stream = max((f for f in formats if f.get('height') == height and f.get('vcodec') != 'none' and f.get('acodec') == 'none'), key=lambda x: x.get('tbr', 0), default={})
-                return (stream.get('filesize') or stream.get('filesize_approx') or 0) + best_audio_size
-
-            audio_streams = sorted([f for f in formats if f.get('vcodec') == 'none' and f.get('abr')], key=lambda x: x['abr'], reverse=True)
-            std_audio_size = (audio_streams[len(audio_streams)//2].get('filesize') or 0) if len(audio_streams) > 2 else best_audio_size
-            low_audio_size = (audio_streams[-1].get('filesize') or 0) if len(audio_streams) > 1 else best_audio_size
+            # Filter video streams with ext=='mp4' (fix to match CLI)
+            video_streams = [f for f in formats if f.get('vcodec') != 'none' and f.get('acodec') == 'none' and f.get('ext') == 'mp4' and f.get('tbr') is not None]
             
-            sizes = [get_video_size(1080), get_video_size(720), get_video_size(480), best_audio_size, std_audio_size, low_audio_size]
+            def find_best_video(streams, height):
+                target_streams = [s for s in streams if s.get('height') == height]
+                if not target_streams: return None
+                sized_streams = [s for s in target_streams if s.get('filesize') or s.get('filesize_approx')]
+                return max(sized_streams or target_streams, key=lambda f: f.get('tbr', 0), default=None)
+
+            best_1080p = find_best_video(video_streams, 1080)
+            best_720p = find_best_video(video_streams, 720)
+            best_480p = find_best_video(video_streams, 480)
+
+            size_1080 = (best_1080p.get('filesize') or best_1080p.get('filesize_approx') or 0) + best_audio_size if best_1080p else 0
+            size_720 = (best_720p.get('filesize') or best_720p.get('filesize_approx') or 0) + best_audio_size if best_720p else 0
+            size_480 = (best_480p.get('filesize') or best_480p.get('filesize_approx') or 0) + best_audio_size if best_480p else 0
+
+            # Audio streams (fix to include filesize_approx for all)
+            audio_streams = sorted([f for f in formats if f.get('vcodec') == 'none' and f.get('acodec') != 'none' and f.get('abr') is not None], key=lambda x: x['abr'], reverse=True)
+            std_audio_size = (audio_streams[len(audio_streams)//2].get('filesize') or audio_streams[len(audio_streams)//2].get('filesize_approx') or 0) if len(audio_streams) > 2 else best_audio_size
+            low_audio_size = (audio_streams[-1].get('filesize') or audio_streams[-1].get('filesize_approx') or 0) if len(audio_streams) > 1 else best_audio_size
+
+            sizes = [size_1080, size_720, size_480, best_audio_size, std_audio_size, low_audio_size]
 
         for i, ((text, value), size) in enumerate(zip(options_map.items(), sizes)):
             label = f"{text} (~{format_size(size)})" if not is_playlist and size > 0 else text
