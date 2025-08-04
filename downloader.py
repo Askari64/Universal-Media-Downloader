@@ -34,8 +34,14 @@ def get_smart_choices(url):
             print("Fetching available formats, please wait...")
             info = ydl.extract_info(url, download=False)
     except Exception as e:
-        print(f"\nCould not fetch video information. Error: {e}")
-        return None
+        # FIX: Add a specific check for DRM errors for a graceful exit.
+        if 'DRM' in str(e):
+            print("\nError: This content is protected by DRM and cannot be downloaded.")
+            print("This script does not support services like Spotify, Netflix, etc.")
+            return None # Return None to allow the main loop to continue
+        else:
+            print(f"\nCould not fetch video information. Error: {e}")
+            return None
 
     formats = info.get('formats', [])
     if not formats:
@@ -214,21 +220,27 @@ def select_and_download(url):
 
 def main():
     """
-    Main function to run the downloader script.
+    Main function to run the downloader script in a loop.
     """
-    print("--- Universal Audio/Video Downloader ---")
-    
-    if len(sys.argv) > 1:
-        url = sys.argv[1]
-        print(f"URL provided: {url}")
-    else:
-        url = input("Please enter the URL of the media you want to download: ")
+    # --- Main Loop ---
+    while True:
+        print("\n--- Universal Audio/Video Downloader ---")
+        print("Supports YouTube, Vimeo, SoundCloud, and many other sites.")
+        print("NOTE: Does NOT support DRM-protected services like Spotify or Netflix.\n")
+        
+        url = input("Please enter the URL of the media (or type 'exit' to quit): ")
 
-    if not url:
-        print("No URL provided. Exiting.")
-        return
+        if url.lower() in ['exit', 'quit']:
+            print("Exiting downloader. Goodbye!")
+            break
+            
+        if not url:
+            print("No URL provided. Please try again.")
+            continue
 
-    select_and_download(url)
+        select_and_download(url)
+        print("\n" + "="*50 + "\n")
+
 
 if __name__ == "__main__":
     main()
