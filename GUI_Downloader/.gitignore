@@ -1,0 +1,13 @@
+# Ignore PyInstaller generated folders
+/dist
+/build
+
+# Ignore PyInstaller spec file
+*.spec
+
+# Ignore Python cache
+__pycache__/
+
+#Ignore packages
+ffmpeg.exe
+ffprobe.exe
