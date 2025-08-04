@@ -296,20 +296,29 @@ def main():
         os.makedirs(audio_folder, exist_ok=True)
         os.makedirs(video_folder, exist_ok=True)
         
-    while True:
-        print("\n--- Universal Audio/Video Downloader ---")
-        print("Supports YouTube, Vimeo, SoundCloud, etc. Does NOT support DRM sites like Spotify.")
-        url = input("Please enter the URL (or type 'exit' to quit): ")
+    # --- Main Loop ---
+    try:
+        while True:
+            print("\n--- Universal Audio/Video Downloader ---")
+            print("Supports YouTube, Vimeo, SoundCloud, etc. Does NOT support DRM sites like Spotify.")
+            url = input("Please enter the URL (or type 'exit' to quit): ")
 
-        if url.lower() in ['exit', 'quit']:
-            print("Exiting. Goodbye!")
-            break
-        if not url:
-            print("No URL provided.")
-            continue
-        
-        process_url(url, audio_folder, video_folder)
-        print("\n" + "="*50 + "\n")
+            if url.lower() in ['exit', 'quit']:
+                print("Exiting. Goodbye!")
+                break
+            if not url:
+                print("No URL provided.")
+                continue
+            
+            process_url(url, audio_folder, video_folder)
+            print("\n" + "="*50 + "\n")
+    except KeyboardInterrupt:
+        print("\n\nExiting downloader. Goodbye!")
+        try:
+            sys.exit(0)
+        except SystemExit:
+            os._exit(0)
+
 
 if __name__ == "__main__":
     main()
