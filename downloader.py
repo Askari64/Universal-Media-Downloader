@@ -11,6 +11,8 @@
 
 import yt_dlp
 import sys
+import os
+from urllib.parse import urlparse, urlunparse, parse_qs, urlencode
 
 def format_size(size_in_bytes):
     """Converts bytes to a human-readable format (KB, MB, GB)."""
@@ -24,6 +26,37 @@ def format_size(size_in_bytes):
         n += 1
     return f"{size_in_bytes:.2f} {power_labels[n]}B"
 
+def sanitize_youtube_url(url):
+    """
+    Sanitizes YouTube URLs to remove tracking parameters, playlists, etc.
+    """
+    parsed_url = urlparse(url)
+    hostname = parsed_url.hostname
+
+    # Only proceed if it's a recognizable YouTube domain
+    if not (hostname and ('youtube.com' in hostname or 'youtu.be' in hostname)):
+        return url
+
+    clean_url = ""
+    if 'youtu.be' in hostname:
+        # For youtu.be links, the path is the video ID. Remove all query params.
+        # e.g., https://youtu.be/iQYxjOAAbu4?si=... -> https://youtu.be/iQYxjOAAbu4
+        clean_url = urlunparse((parsed_url.scheme, parsed_url.netloc, parsed_url.path, '', '', ''))
+    elif 'youtube.com' in hostname and parsed_url.path == '/watch':
+        # For youtube.com/watch links, keep only the 'v' parameter.
+        query_params = parse_qs(parsed_url.query)
+        if 'v' in query_params:
+            # Rebuild the URL with only the 'v' parameter
+            sanitized_query = urlencode({'v': query_params['v'][0]}, doseq=True)
+            clean_url = urlunparse((parsed_url.scheme, parsed_url.netloc, parsed_url.path, '', sanitized_query, ''))
+
+    if clean_url and url != clean_url:
+        print(f"Sanitizing URL to: {clean_url}")
+        return clean_url
+    
+    # If no changes were made or pattern didn't match, return original URL
+    return url
+
 def get_smart_choices(url):
     """
     Fetches format information and intelligently selects the best options.
@@ -34,7 +67,7 @@ def get_smart_choices(url):
             print("Fetching available formats, please wait...")
             info = ydl.extract_info(url, download=False)
     except Exception as e:
-        # FIX: Add a specific check for DRM errors for a graceful exit.
+        # Add a specific check for DRM errors for a graceful exit.
         if 'DRM' in str(e):
             print("\nError: This content is protected by DRM and cannot be downloaded.")
             print("This script does not support services like Spotify, Netflix, etc.")
@@ -158,7 +191,7 @@ def get_smart_choices(url):
     
     return unique_choices
 
-def select_and_download(url):
+def select_and_download(url, audio_folder, video_folder):
     """
     Presents the simplified menu and handles the download process.
     """
@@ -184,10 +217,17 @@ def select_and_download(url):
             print("Please enter a number.")
             
     # --- Configure Download Options ---
+    if selected['type'] == 'audio':
+        # Use %(clean_title)s and add the ID as a fallback for a reliable filename
+        output_path_template = os.path.join(audio_folder, '%(clean_title)s - [%(id)s].%(ext)s')
+    else: # 'video'
+        # Use %(clean_title)s and add the ID as a fallback for a reliable filename
+        output_path_template = os.path.join(video_folder, '%(clean_title)s - [%(id)s].%(ext)s')
+
     format_selection = selected['format_id']
     ydl_opts = {
         'format': format_selection,
-        'outtmpl': '%(title)s.%(ext)s',
+        'outtmpl': output_path_template,
         'noplaylist': True,
     }
 
@@ -222,6 +262,25 @@ def main():
     """
     Main function to run the downloader script in a loop.
     """
+    # --- Setup Download Folders on Desktop ---
+    try:
+        desktop_path = os.path.join(os.path.expanduser('~'), 'Desktop')
+        main_download_folder = os.path.join(desktop_path, 'Universal Audio Video Downloader')
+        audio_folder = os.path.join(main_download_folder, 'Audio')
+        video_folder = os.path.join(main_download_folder, 'Video')
+
+        os.makedirs(audio_folder, exist_ok=True)
+        os.makedirs(video_folder, exist_ok=True)
+        print(f"Downloads will be saved to: {main_download_folder}")
+    except Exception as e:
+        print(f"Error creating download directories on Desktop: {e}")
+        print("Downloads will be saved to the current directory instead.")
+        # Fallback to current directory if desktop can't be accessed
+        audio_folder = 'Audio'
+        video_folder = 'Video'
+        os.makedirs(audio_folder, exist_ok=True)
+        os.makedirs(video_folder, exist_ok=True)
+        
     # --- Main Loop ---
     while True:
         print("\n--- Universal Audio/Video Downloader ---")
@@ -237,8 +296,11 @@ def main():
         if not url:
             print("No URL provided. Please try again.")
             continue
+        
+        # Sanitize the URL before processing
+        sanitized_url = sanitize_youtube_url(url)
 
-        select_and_download(url)
+        select_and_download(sanitized_url, audio_folder, video_folder)
         print("\n" + "="*50 + "\n")
 
 
