@@ -1,6 +1,6 @@
 # Universal Audio/Video Downloader (with Smart Selection)
-# This script automatically finds the best download options and presents
-# a simple menu to the user, limited to a maximum of 4 choices.
+# This script automatically finds the best download options for video and audio
+# and presents a simple menu to the user.
 #
 # Before running:
 # 1. Make sure you have Python installed.
@@ -26,7 +26,7 @@ def format_size(size_in_bytes):
 
 def get_smart_choices(url):
     """
-    Fetches format information and intelligently selects the best 4 options.
+    Fetches format information and intelligently selects the best options.
     """
     ydl_opts = {'quiet': True}
     try:
@@ -42,21 +42,12 @@ def get_smart_choices(url):
         print("No downloadable formats found.")
         return None
 
-    choices = {}
-    
-    # --- Find Best Audio ---
-    best_audio = max(
+    # --- Find Best Audio for Merging ---
+    best_audio_for_merge = max(
         (f for f in formats if f.get('vcodec') == 'none' and f.get('acodec') != 'none' and f.get('abr') is not None),
         key=lambda f: f.get('abr', 0),
         default=None
     )
-    if best_audio:
-        choices['audio_only'] = {
-            'label': f"Audio Only (Best Quality, MP3)",
-            'format_id': best_audio['format_id'],
-            'filesize': best_audio.get('filesize') or best_audio.get('filesize_approx'),
-            'type': 'audio'
-        }
 
     # --- Find Best Video-only Streams, prioritizing those with file sizes ---
     video_streams = [f for f in formats if f.get('vcodec') != 'none' and f.get('acodec') == 'none' and f.get('ext') == 'mp4' and f.get('tbr') is not None]
@@ -66,15 +57,10 @@ def get_smart_choices(url):
         target_streams = [s for s in streams if s.get('height') == height]
         if not target_streams:
             return None
-        
-        # Prioritize streams that have a size estimate
         sized_streams = [s for s in target_streams if s.get('filesize') or s.get('filesize_approx')]
-        
         if sized_streams:
-            # If we have streams with size, pick the best bitrate from them
             return max(sized_streams, key=lambda f: f.get('tbr', 0), default=None)
         else:
-            # Fallback: if no streams have size, pick the best bitrate from all available
             return max(target_streams, key=lambda f: f.get('tbr', 0), default=None)
 
     best_1080p = find_best_video(video_streams, 1080)
@@ -89,35 +75,74 @@ def get_smart_choices(url):
 
     # --- Build the Choices Menu ---
     final_choices = []
-    if best_1080p and best_audio:
+    if best_1080p and best_audio_for_merge:
         video_size = best_1080p.get('filesize') or best_1080p.get('filesize_approx') or 0
-        audio_size = best_audio.get('filesize') or best_audio.get('filesize_approx') or 0
+        audio_size = best_audio_for_merge.get('filesize') or best_audio_for_merge.get('filesize_approx') or 0
         final_choices.append({
-            'label': f"Best Quality ({best_1080p.get('resolution')})",
-            'format_id': f"{best_1080p['format_id']}+{best_audio['format_id']}",
+            'label': f"Best Quality Video ({best_1080p.get('resolution')})",
+            'format_id': f"{best_1080p['format_id']}+{best_audio_for_merge['format_id']}",
             'filesize': video_size + audio_size,
             'type': 'video'
         })
-    if best_720p and best_audio:
+    if best_720p and best_audio_for_merge:
         video_size = best_720p.get('filesize') or best_720p.get('filesize_approx') or 0
-        audio_size = best_audio.get('filesize') or best_audio.get('filesize_approx') or 0
+        audio_size = best_audio_for_merge.get('filesize') or best_audio_for_merge.get('filesize_approx') or 0
         final_choices.append({
-            'label': f"Good Quality ({best_720p.get('resolution')})",
-            'format_id': f"{best_720p['format_id']}+{best_audio['format_id']}",
+            'label': f"Good Quality Video ({best_720p.get('resolution')})",
+            'format_id': f"{best_720p['format_id']}+{best_audio_for_merge['format_id']}",
             'filesize': video_size + audio_size,
             'type': 'video'
         })
     if best_merged:
         final_choices.append({
-            'label': f"Standard Quality ({best_merged.get('resolution')}, single file)",
+            'label': f"Standard Quality Video ({best_merged.get('resolution')}, single file)",
             'format_id': best_merged['format_id'],
             'filesize': best_merged.get('filesize') or best_merged.get('filesize_approx'),
             'type': 'video'
         })
-    if 'audio_only' in choices:
-        final_choices.append(choices['audio_only'])
 
-    # Ensure we have at most 4 unique choices
+    # --- Find and Add Audio-Only Choices ---
+    all_audio_streams = sorted(
+        [f for f in formats if f.get('vcodec') == 'none' and f.get('acodec') != 'none' and f.get('abr') is not None],
+        key=lambda f: f.get('abr', 0),
+        reverse=True
+    )
+
+    added_audio_labels = set()
+    if all_audio_streams:
+        # Best Audio
+        best_audio = all_audio_streams[0]
+        label = f"Best Audio (~{round(best_audio.get('abr', 0))}kbps, MP3)"
+        if label not in added_audio_labels:
+            final_choices.append({
+                'label': label, 'format_id': best_audio['format_id'],
+                'filesize': best_audio.get('filesize') or best_audio.get('filesize_approx'), 'type': 'audio'
+            })
+            added_audio_labels.add(label)
+
+        # Medium Audio (if more than 2 options exist)
+        if len(all_audio_streams) > 2:
+            medium_audio = all_audio_streams[len(all_audio_streams) // 2]
+            label = f"Standard Audio (~{round(medium_audio.get('abr', 0))}kbps, MP3)"
+            if label not in added_audio_labels:
+                 final_choices.append({
+                    'label': label, 'format_id': medium_audio['format_id'],
+                    'filesize': medium_audio.get('filesize') or medium_audio.get('filesize_approx'), 'type': 'audio'
+                })
+                 added_audio_labels.add(label)
+
+        # Low Audio (if more than 1 option exists)
+        if len(all_audio_streams) > 1:
+            low_audio = all_audio_streams[-1]
+            label = f"Low Quality Audio (~{round(low_audio.get('abr', 0))}kbps, MP3)"
+            if label not in added_audio_labels:
+                final_choices.append({
+                    'label': label, 'format_id': low_audio['format_id'],
+                    'filesize': low_audio.get('filesize') or low_audio.get('filesize_approx'), 'type': 'audio'
+                })
+                added_audio_labels.add(label)
+
+    # --- Final Cleanup ---
     unique_choices = []
     seen_labels = set()
     for choice in final_choices:
@@ -125,7 +150,7 @@ def get_smart_choices(url):
             unique_choices.append(choice)
             seen_labels.add(choice['label'])
     
-    return unique_choices[:4]
+    return unique_choices
 
 def select_and_download(url):
     """
