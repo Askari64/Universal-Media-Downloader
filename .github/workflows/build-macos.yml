@@ -11,6 +11,10 @@ jobs:
   build-macos:
     # Use a virtual machine running the latest version of macOS
     runs-on: macos-latest
+    
+    # Add this permissions block to allow uploading to the release
+    permissions:
+      contents: write
 
     steps:
       # Step 1: Check out your repository's code
