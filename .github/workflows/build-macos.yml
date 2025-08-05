@@ -39,7 +39,7 @@ jobs:
           cd GUI_Downloader
           python3 -m PyInstaller \
             --noconsole \
-            --onefile \
+            --onedir \
             --windowed \
             --icon="icon.icns" \
             --add-binary "$(which ffmpeg):." \
