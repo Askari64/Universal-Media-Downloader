@@ -23,7 +23,7 @@ jobs:
         with:
           python-version: '3.10' # You can change this version if needed
 
-      # Step 3: Install all dependencies
+      # Step 3: Install all dependencies (including Pillow for icon conversion)
       - name: Install dependencies
         run: |
           brew install ffmpeg
@@ -31,21 +31,21 @@ jobs:
 
       # Step 4: Run the PyInstaller build command
       - name: Build the application
-        # This command now runs from the root but targets the correct script path
+        # This command now uses the .ico file, which will be auto-converted by Pillow
         run: |
           python3 -m PyInstaller \
             --noconsole \
             --onedir \
             --windowed \
             --name "Universal Media Downloader" \
-            --icon="GUI_Downloader/icon.icns" \
+            --icon="GUI_Downloader/icon.ico" \
             --add-binary "$(which ffmpeg):." \
             --add-binary "$(which ffprobe):." \
             "GUI_Downloader/Universal Media Downloader.py"
 
       # Step 5: Zip the final .app file for easy downloading
       - name: Zip the .app file
-        # The output path is now based on the script name
+        # The output path is now based on the --name flag
         run: |
           cd "dist"
           zip -r "Universal-Media-Downloader-macOS.zip" "Universal Media Downloader.app"
