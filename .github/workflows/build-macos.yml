@@ -27,7 +27,7 @@ jobs:
       - name: Install dependencies
         run: |
           brew install ffmpeg
-          pip3 install customtkinter yt-dlp pyinstaller
+          pip3 install customtkinter yt-dlp pyinstaller Pillow
 
       # Step 4: Navigate into your GUI folder
       - name: Navigate to GUI folder
