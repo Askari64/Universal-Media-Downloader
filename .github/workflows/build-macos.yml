@@ -1,0 +1,64 @@
+# .github/workflows/build-macos.yml
+
+name: Build macOS Application
+
+# This action will only run when you create a new release on GitHub
+on:
+  release:
+    types: [created]
+
+jobs:
+  build-macos:
+    # Use a virtual machine running the latest version of macOS
+    runs-on: macos-latest
+
+    steps:
+      # Step 1: Check out your repository's code
+      - name: Check out code
+        uses: actions/checkout@v3
+
+      # Step 2: Set up Python
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10' # You can change this version if needed
+
+      # Step 3: Install dependencies (Homebrew for FFmpeg, pip for Python libs)
+      - name: Install dependencies
+        run: |
+          brew install ffmpeg
+          pip3 install customtkinter yt-dlp pyinstaller
+
+      # Step 4: Navigate into your GUI folder
+      - name: Navigate to GUI folder
+        run: cd GUI_Downloader
+
+      # Step 5: Run the PyInstaller build command
+      - name: Build the application
+        run: |
+          cd GUI_Downloader
+          python3 -m PyInstaller \
+            --noconsole \
+            --onefile \
+            --windowed \
+            --icon="icon.ico" \
+            --add-binary "$(which ffmpeg):." \
+            --add-binary "$(which ffprobe):." \
+            "Universal Media Downloader.py"
+
+      # Step 6: Zip the final .app file for easy downloading
+      - name: Zip the .app file
+        run: |
+          cd "GUI_Downloader/dist"
+          zip -r "Universal-Media-Downloader-macOS.zip" "Universal Media Downloader.app"
+
+      # Step 7: Upload the zip file as an artifact to the release
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: ./GUI_Downloader/dist/Universal-Media-Downloader-macOS.zip
+          asset_name: Universal-Media-Downloader-macOS.zip
+          asset_content_type: application/zip
