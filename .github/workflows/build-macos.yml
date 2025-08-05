@@ -23,42 +23,40 @@ jobs:
         with:
           python-version: '3.10' # You can change this version if needed
 
-      # Step 3: Install dependencies (Homebrew for FFmpeg, pip for Python libs)
+      # Step 3: Install all dependencies
       - name: Install dependencies
         run: |
           brew install ffmpeg
-          pip3 install customtkinter yt-dlp pyinstaller
+          pip3 install customtkinter yt-dlp pyinstaller Pillow
 
-      # Step 4: Navigate into your GUI folder
-      - name: Navigate to GUI folder
-        run: cd GUI_Downloader
-
-      # Step 5: Run the PyInstaller build command
+      # Step 4: Run the PyInstaller build command
       - name: Build the application
+        # This command now runs from the root but targets the correct script path
         run: |
-          cd GUI_Downloader
           python3 -m PyInstaller \
             --noconsole \
             --onedir \
             --windowed \
-            --icon="icon.icns" \
+            --name "Universal Media Downloader" \
+            --icon="GUI_Downloader/icon.icns" \
             --add-binary "$(which ffmpeg):." \
             --add-binary "$(which ffprobe):." \
-            "Universal Media Downloader.py"
+            "GUI_Downloader/Universal Media Downloader.py"
 
-      # Step 6: Zip the final .app file for easy downloading
+      # Step 5: Zip the final .app file for easy downloading
       - name: Zip the .app file
+        # The output path is now based on the script name
         run: |
-          cd "GUI_Downloader/dist"
+          cd "dist"
           zip -r "Universal-Media-Downloader-macOS.zip" "Universal Media Downloader.app"
 
-      # Step 7: Upload the zip file as an artifact to the release
+      # Step 6: Upload the zip file as an artifact to the release
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ github.event.release.upload_url }}
-          asset_path: ./GUI_Downloader/dist/Universal-Media-Downloader-macOS.zip
+          asset_path: ./dist/Universal-Media-Downloader-macOS.zip
           asset_name: Universal-Media-Downloader-macOS.zip
           asset_content_type: application/zip
