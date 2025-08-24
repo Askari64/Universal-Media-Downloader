@@ -2,8 +2,6 @@
 /dist
 /build
 
-# Ignore PyInstaller spec file
-*.spec
 
 # Ignore Python cache
 __pycache__/
