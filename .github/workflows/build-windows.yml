@@ -35,7 +35,7 @@ jobs:
 
       - name: Zip the output folder
         run: |
-          powershell Compress-Archive -Path .\dist\Universal Media Downloader\* -DestinationPath .\dist\Universal-Media-Downloader-Windows.zip
+          powershell Compress-Archive -Path ".\\dist\\Universal Media Downloader\\*" -DestinationPath ".\\dist\\Universal-Media-Downloader-Windows.zip"
 
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1
