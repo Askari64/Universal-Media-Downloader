@@ -12,21 +12,25 @@ jobs:
       contents: write
 
     steps:
+      # Step 1: Check out your repository's code
       - name: Check out code
         uses: actions/checkout@v3
 
+      # Step 2: Set up Python
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.10'
 
+      # Step 3: Install dependencies and ffmpeg
       - name: Install dependencies and ffmpeg
         run: |
           python -m pip install --upgrade pip
           pip install customtkinter yt-dlp pyinstaller Pillow
           choco install ffmpeg -y
 
-      - name: Locate ffmpeg and ffprobe paths
+      # Step 4: Locate ffmpeg and ffprobe paths
+      - name: Locate ffmpeg and ffprobe
         id: locate_ffmpeg
         shell: pwsh
         run: |
@@ -40,16 +44,12 @@ jobs:
             Write-Error "ffprobe not found in PATH"
             exit 1
           }
-          Write-Host "ffmpeg path: $ffmpegPath"
-          Write-Host "ffprobe path: $ffprobePath"
           echo "ffmpeg=$ffmpegPath" >> $env:GITHUB_OUTPUT
           echo "ffprobe=$ffprobePath" >> $env:GITHUB_OUTPUT
 
-      - name: Clean previous builds
-        run: |
-          Remove-Item -Recurse -Force .\build, .\dist
-
+      # Step 5: Build the application using PyInstaller
       - name: Build the application
+        shell: pwsh
         run: |
           pyinstaller --clean --noconsole --onedir --windowed --name "Universal Media Downloader" `
             --icon="GUI_Downloader\icon.ico" `
@@ -57,10 +57,13 @@ jobs:
             --add-binary "${{ steps.locate_ffmpeg.outputs.ffprobe }};." `
             "GUI_Downloader\Universal Media Downloader.py"
 
+      # Step 6: Zip the output folder for easy downloading
       - name: Zip the output folder
+        shell: pwsh
         run: |
-          powershell Compress-Archive -Path '.\dist\Universal Media Downloader\*' -DestinationPath '.\dist\Universal-Media-Downloader-Windows.zip'
+          Compress-Archive -Path '.\dist\Universal Media Downloader\*' -DestinationPath '.\dist\Universal-Media-Downloader-Windows.zip'
 
+      # Step 7: Upload the zipped build as a release asset
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1
         env:
