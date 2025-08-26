@@ -1,0 +1,50 @@
+name: Build Linux Application
+
+on:
+  release:
+    types: [created]
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: write
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          pip install customtkinter yt-dlp pyinstaller Pillow
+
+      - name: Build the application
+        run: |
+          pyinstaller --noconsole --onedir --windowed --name "Universal Media Downloader" \
+            --icon="GUI_Downloader/icon.png" \
+            --add-binary "$(which ffmpeg):." \
+            --add-binary "$(which ffprobe):." \
+            "GUI_Downloader/Universal Media Downloader.py"
+
+      - name: Zip the output folder
+        run: |
+          cd dist
+          zip -r ../Universal-Media-Downloader-Linux.zip "Universal Media Downloader"
+
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: ./Universal-Media-Downloader-Linux.zip
+          asset_name: Universal-Media-Downloader-Linux.zip
+          asset_content_type: application/zip
