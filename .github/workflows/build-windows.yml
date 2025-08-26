@@ -28,25 +28,38 @@ jobs:
 
       - name: Locate ffmpeg and ffprobe paths
         id: locate_ffmpeg
+        shell: pwsh
         run: |
-          $ffmpegPath = (where.exe ffmpeg).Trim()
-          $ffprobePath = (where.exe ffprobe).Trim()
+          $ffmpegPath = (where.exe ffmpeg | Select-Object -First 1).Trim()
+          $ffprobePath = (where.exe ffprobe | Select-Object -First 1).Trim()
+          if (-not (Test-Path $ffmpegPath)) {
+            Write-Error "ffmpeg not found in PATH"
+            exit 1
+          }
+          if (-not (Test-Path $ffprobePath)) {
+            Write-Error "ffprobe not found in PATH"
+            exit 1
+          }
           Write-Host "ffmpeg path: $ffmpegPath"
           Write-Host "ffprobe path: $ffprobePath"
-          echo "::set-output name=ffmpeg::$ffmpegPath"
-          echo "::set-output name=ffprobe::$ffprobePath"
+          echo "ffmpeg=$ffmpegPath" >> $env:GITHUB_OUTPUT
+          echo "ffprobe=$ffprobePath" >> $env:GITHUB_OUTPUT
+
+      - name: Clean previous builds
+        run: |
+          Remove-Item -Recurse -Force .\build, .\dist
 
       - name: Build the application
         run: |
-          pyinstaller --noconsole --onedir --windowed --name "Universal Media Downloader" `
-            --icon="GUI_Downloader\\icon.ico" `
+          pyinstaller --clean --noconsole --onedir --windowed --name "Universal Media Downloader" `
+            --icon="GUI_Downloader\icon.ico" `
             --add-binary "${{ steps.locate_ffmpeg.outputs.ffmpeg }};." `
             --add-binary "${{ steps.locate_ffmpeg.outputs.ffprobe }};." `
-            "GUI_Downloader\\Universal Media Downloader.py"
+            "GUI_Downloader\Universal Media Downloader.py"
 
       - name: Zip the output folder
         run: |
-          powershell Compress-Archive -Path ".\\dist\\Universal Media Downloader\\*" -DestinationPath ".\\dist\\Universal-Media-Downloader-Windows.zip"
+          powershell Compress-Archive -Path '.\dist\Universal Media Downloader\*' -DestinationPath '.\dist\Universal-Media-Downloader-Windows.zip'
 
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1
