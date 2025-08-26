@@ -7,7 +7,7 @@ on:
 jobs:
   build-windows:
     runs-on: windows-latest
-    
+
     permissions:
       contents: write
 
@@ -27,15 +27,15 @@ jobs:
 
       - name: Build the application
         run: |
-          pyinstaller --noconsole --onedir --windowed --name "Universal Media Downloader" \
-            --icon="GUI_Downloader\\icon.ico" \
-            --add-binary "GUI_Downloader\\ffmpeg.exe;." \
-            --add-binary "GUI_Downloader\\ffprobe.exe;." \
+          pyinstaller --noconsole --onedir --windowed --name "Universal Media Downloader" `
+            --icon="GUI_Downloader\\icon.ico" `
+            --add-binary "GUI_Downloader\\ffmpeg.exe;." `
+            --add-binary "GUI_Downloader\\ffprobe.exe;." `
             "GUI_Downloader\\Universal Media Downloader.py"
 
       - name: Zip the output folder
         run: |
-          powershell Compress-Archive -Path .\dist\Universal\ Media\ Downloader\* -DestinationPath .\dist\Universal-Media-Downloader-Windows.zip
+          powershell Compress-Archive -Path .\dist\Universal Media Downloader\* -DestinationPath .\dist\Universal-Media-Downloader-Windows.zip
 
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1
