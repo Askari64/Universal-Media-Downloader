@@ -1,3 +1,5 @@
+# .github/workflows/build-windows.yml
+
 name: Build Windows Application
 
 on:
@@ -23,59 +25,34 @@ jobs:
           python-version: '3.10'
 
       # Step 3: Install dependencies and ffmpeg
-      - name: Install dependencies and ffmpeg
+      - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install customtkinter yt-dlp pyinstaller Pillow
           choco install ffmpeg -y
 
-      # Step 4: Locate ffmpeg and ffprobe paths
-      - name: Locate ffmpeg and ffprobe
-        id: locate_ffmpeg
-        shell: pwsh
-        run: |
-          $ffmpegPath = (where.exe ffmpeg | Select-Object -First 1).Trim()
-          $ffprobePath = (where.exe ffprobe | Select-Object -First 1).Trim()
-          if (-not (Test-Path $ffmpegPath)) {
-            Write-Error "ffmpeg not found in PATH"
-            exit 1
-          }
-          if (-not (Test-Path $ffprobePath)) {
-            Write-Error "ffprobe not found in PATH"
-            exit 1
-          }
-          echo "ffmpeg=$ffmpegPath" >> $env:GITHUB_OUTPUT
-          echo "ffprobe=$ffprobePath" >> $env:GITHUB_OUTPUT
-
-      # Step 5: Build the application using PyInstaller
+      # Step 4: Build the application with PyInstaller
       - name: Build the application
         shell: pwsh
         run: |
           pyinstaller --noconsole --onedir --windowed --name "Universal Media Downloader" `
-            --icon="GUI_Downloader\icon.ico" `
-            --add-binary "${{ steps.locate_ffmpeg.outputs.ffmpeg }};." `
-            --add-binary "${{ steps.locate_ffmpeg.outputs.ffprobe }};." `
+            --icon "GUI_Downloader\icon.ico" `
+            --add-binary ((Get-Command ffmpeg.exe).Source + ";.") `
+            --add-binary ((Get-Command ffprobe.exe).Source + ";.") `
             "GUI_Downloader\Universal Media Downloader.py"
 
-      # Step 6: List build output contents (for debugging, safe to remove if not needed)
-      - name: List build output contents
-        shell: pwsh
-        run: |
-          Get-ChildItem -Recurse '.\dist\Universal Media Downloader'
-
-      # Step 7: Zip the output folder for easy downloading
+      # Step 5: Zip the output folder for release
       - name: Zip the output folder
         shell: pwsh
-        run: |
-          Compress-Archive -Path '.\dist\Universal Media Downloader\*' -DestinationPath '.\dist\Universal-Media-Downloader-Windows.zip'
-
-      # Step 8: Upload the zipped build as a release asset
+        run: Compress-Archive -Path '.\dist\Universal Media Downloader' -DestinationPath 'Universal-Media-Downloader-Windows.zip'
+        
+      # Step 6: Upload the zip file as a release asset
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ github.event.release.upload_url }}
-          asset_path: ./dist/Universal-Media-Downloader-Windows.zip
+          asset_path: ./Universal-Media-Downloader-Windows.zip
           asset_name: Universal-Media-Downloader-Windows.zip
           asset_content_type: application/zip
