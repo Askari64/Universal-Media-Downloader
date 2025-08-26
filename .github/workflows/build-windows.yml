@@ -51,19 +51,25 @@ jobs:
       - name: Build the application
         shell: pwsh
         run: |
-          pyinstaller --clean --noconsole --onedir --windowed --name "Universal Media Downloader" `
+          pyinstaller --noconsole --onedir --windowed --name "Universal Media Downloader" `
             --icon="GUI_Downloader\icon.ico" `
             --add-binary "${{ steps.locate_ffmpeg.outputs.ffmpeg }};." `
             --add-binary "${{ steps.locate_ffmpeg.outputs.ffprobe }};." `
             "GUI_Downloader\Universal Media Downloader.py"
 
-      # Step 6: Zip the output folder for easy downloading
+      # Step 6: List build output contents (for debugging, safe to remove if not needed)
+      - name: List build output contents
+        shell: pwsh
+        run: |
+          Get-ChildItem -Recurse '.\dist\Universal Media Downloader'
+
+      # Step 7: Zip the output folder for easy downloading
       - name: Zip the output folder
         shell: pwsh
         run: |
           Compress-Archive -Path '.\dist\Universal Media Downloader\*' -DestinationPath '.\dist\Universal-Media-Downloader-Windows.zip'
 
-      # Step 7: Upload the zipped build as a release asset
+      # Step 8: Upload the zipped build as a release asset
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1
         env:
