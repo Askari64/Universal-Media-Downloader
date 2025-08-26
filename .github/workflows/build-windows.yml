@@ -1,5 +1,3 @@
-# .github/workflows/build-windows.yml
-
 name: Build Windows Application
 
 on:
@@ -9,46 +7,44 @@ on:
 jobs:
   build-windows:
     runs-on: windows-latest
-
+    
     permissions:
       contents: write
 
     steps:
-      # Step 1: Check out your repository's code
       - name: Check out code
         uses: actions/checkout@v3
 
-      # Step 2: Set up Python
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.10'
 
-      # Step 3: Install dependencies and ffmpeg
       - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install customtkinter yt-dlp pyinstaller Pillow
-          choco install ffmpeg -y
-
-      # Step 4: Build the application with PyInstaller
-      - name: Build the application
+        run: pip install customtkinter yt-dlp pyinstaller Pillow
         shell: pwsh
+
+      - name: Download FFmpeg
+        run: |
+          Invoke-WebRequest -Uri https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip -OutFile ffmpeg.zip
+          Expand-Archive ffmpeg.zip -DestinationPath ffmpeg
+        shell: pwsh
+
+      - name: Build the application
         run: |
           pyinstaller --noconsole --onedir --windowed --name "Universal Media Downloader" `
-            --icon "GUI_Downloader\icon.ico" `
-            --add-binary ((Get-Command ffmpeg.exe).Source + ";.") `
-            --add-binary ((Get-Command ffprobe.exe).Source + ";.") `
-            "GUI_Downloader\Universal Media Downloader.py"
-
-      # Step 5: Zip the output folder for release (FIXED)
-      - name: Zip the output folder
+            --icon="GUI_Downloader/icon.ico" `
+            --add-binary "ffmpeg/ffmpeg-master-latest-win64-gpl/bin/ffmpeg.exe;." `
+            --add-binary "ffmpeg/ffmpeg-master-latest-win64-gpl/bin/ffprobe.exe;." `
+            "GUI_Downloader/Universal Media Downloader.py"
         shell: pwsh
+
+      - name: Zip the output folder
         run: |
           cd dist
-          Compress-Archive -Path '.\Universal Media Downloader' -DestinationPath '..\Universal-Media-Downloader-Windows.zip'
-        
-      # Step 6: Upload the zip file as a release asset
+          Compress-Archive -Path "Universal Media Downloader" -DestinationPath ../Universal-Media-Downloader-Windows.zip
+        shell: pwsh
+
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1
         env:
